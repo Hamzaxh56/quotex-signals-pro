@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<title>Quotex Signals Pro</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#111c2e;--line:#26344b;--text:#eef4ff;--muted:#9aabc4;--green:#31d49a;--red:#ff6f7d;--yellow:#ffd166}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:18px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.brand{font-size:19px;font-weight:800;letter-spacing:.2px}.brand span{color:var(--green)}.pill{font-size:11px;color:var(--yellow);border:1px solid #705d2b;border-radius:99px;padding:5px 8px}
+main{max-width:1000px;margin:auto;padding:14px;display:grid;gap:12px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}select,button{width:100%;background:#0b1424;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit}
+button{background:#147e65;border:0;font-weight:700;margin-top:10px}button:active{opacity:.8}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center}.muted{color:var(--muted);font-size:12px}.price{font-size:22px;font-weight:750;margin:6px 0}
+#chart{width:100%;height:280px;display:block;background:#0a1322;border-radius:10px;margin-top:12px}
+.signal{font-size:25px;font-weight:900}.CALL{color:var(--green)}.PUT{color:var(--red)}.WAIT{color:var(--yellow)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.mini{background:#0b1424;border:1px solid var(--line);border-radius:10px;padding:10px}.mini strong{display:block;font-size:17px;margin-top:4px}
+.notice{font-size:12px;line-height:1.5;color:var(--muted)}.error{color:var(--red);font-size:13px;margin-top:8px}.reason{line-height:1.5;margin-top:8px}
+@media(min-width:760px){main{grid-template-columns:310px 1fr;align-items:start}.controls{grid-template-columns:1fr}.left{position:sticky;top:12px}.chartpanel{min-width:0}}
+</style></head>
+<body>
+<header><div class="brand">QUOTEX <span>SIGNALS PRO</span></div><div class="pill">SIGNALS ONLY · NO AUTO-TRADING</div></header>
+<main>
+<section class="left">
+<div class="panel">
+<div class="row"><strong>Market setup</strong><span class="muted">Live feed</span></div>
+<div class="controls" style="margin-top:12px">
+<div><label for="symbol">Currency pair</label><select id="symbol"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>USD/CAD</option><option>USD/CHF</option><option>NZD/USD</option></select></div>
+<div><label for="tf">Timeframe / expiry</label><select id="tf"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m">15 minutes</option><option value="30m">30 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="1d">1 day</option></select></div>
+</div>
+<button id="analyse">Refresh market & analyse</button><div id="error" class="error"></div>
+<p class="notice" style="margin-top:12px">This dashboard uses a third-party regular-market feed. Quotex OTC prices can differ. A signal is not a guarantee or financial advice.</p>
+</div>
+<div class="panel" style="margin-top:12px"><strong>How to read signals</strong><p class="notice">CALL means bullish conditions; PUT means bearish conditions; WAIT means the indicators disagree or conditions look stretched. The score measures rule agreement, not the chance of winning.</p></div>
+</section>
+<section class="right">
+<div class="panel">
+<div class="row"><div><div class="muted" id="pairLabel">EUR/USD · 1 minute</div><div class="price" id="price">—</div></div><div style="text-align:right"><div class="muted">Next candle in</div><div class="price" id="countdown">--:--</div></div></div>
+<canvas id="chart" aria-label="Candlestick chart"></canvas>
+<div class="row" style="margin-top:10px"><span class="muted" id="updated">Waiting for market data…</span><span class="muted" id="provider">Twelve Data</span></div>
+</div>
+<div class="panel" style="margin-top:12px">
+<div class="row"><div><div class="muted">Current analysis</div><div id="signal" class="signal WAIT">WAIT</div></div><div style="text-align:right"><div class="muted">Rule agreement score</div><div class="price" id="score">—</div></div></div>
+<div class="reason" id="reason">Refresh market data to calculate the signal.</div>
+<div class="cards"><div class="mini"><span class="muted">RSI (14)</span><strong id="rsi">—</strong></div><div class="mini"><span class="muted">EMA 9</span><strong id="ema9">—</strong></div><div class="mini"><span class="muted">EMA 21</span><strong id="ema21">—</strong></div></div>
+</div>
+<div class="panel" style="margin-top:12px"><strong>Risk reminder</strong><p class="notice">Binary options are high risk and you can lose the full amount staked. Test signals on a demo account first. Do not increase stake to recover losses. No 90% win rate is promised.</p></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);let lastData=null;
+const seconds={ "1m":60,"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,"1d":86400 };
+function countdown(){const s=seconds[$("tf").value],now=Math.floor(Date.now()/1000),left=s-(now%s);$("countdown").textContent=String(Math.floor(left/60)).padStart(2,"0")+":"+String(left%60).padStart(2,"0")}
+setInterval(countdown,250);countdown();
+function draw(candles){const canvas=$("chart"),dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);if(!candles||!candles.length)return;
+const pad={l:8,r:55,t:12,b:12},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;const lows=candles.map(c=>c.low),highs=candles.map(c=>c.high);let min=Math.min(...lows),max=Math.max(...highs);if(max===min){max+=.001;min-=.001}const extra=(max-min)*.08;min-=extra;max+=extra;
+ctx.font="10px system-ui";ctx.strokeStyle="#243249";ctx.fillStyle="#9aabc4";ctx.lineWidth=1;
+for(let i=0;i<5;i++){const y=pad.t+i*ch/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillText((max-(max-min)*i/4).toFixed(5),w-pad.r+4,y+3)}
+const x=i=>pad.l+(i+.5)*cw/candles.length,y=v=>pad.t+(max-v)/(max-min)*ch;const body=Math.max(2,Math.min(10,cw/candles.length*.58));
+candles.forEach((c,i)=>{const xx=x(i),up=c.close>=c.open;ctx.strokeStyle=up?"#31d49a":"#ff6f7d";ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(xx,y(c.high));ctx.lineTo(xx,y(c.low));ctx.stroke();const top=y(Math.max(c.open,c.close)),bottom=y(Math.min(c.open,c.close));ctx.fillRect(xx-body/2,top,body,Math.max(1,bottom-top))});
+const last=candles[candles.length-1];ctx.fillStyle="#dce8f8";ctx.fillText(last.close.toFixed(5),w-pad.r+4,y(last.close)-5)}
+async function load(){ $("error").textContent="";$("analyse").textContent="Loading…";$("analyse").disabled=true;
+try{const u=`/api/market?symbol=${encodeURIComponent($("symbol").value)}&tf=${encodeURIComponent($("tf").value)}`;const r=await fetch(u);const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load market data.");lastData=d;
+const a=d.analysis,c=d.candles;$("pairLabel").textContent=d.symbol+" · "+$("tf").selectedOptions[0].textContent;$("price").textContent=c[c.length-1].close.toFixed(5);$("signal").textContent=a.signal;$("signal").className="signal "+a.signal;$("score").textContent=a.score+" / 100";$("rsi").textContent=a.rsi??"—";$("ema9").textContent=a.ema9??"—";$("ema21").textContent=a.ema21??"—";$("reason").textContent=a.reason+" "+d.note;$("updated").textContent="Updated "+new Date(d.updated_at).toLocaleTimeString();$("provider").textContent="Source: "+d.provider;draw(c);
+}catch(e){$("error").textContent=e.message;$("signal").textContent="WAIT";$("signal").className="signal WAIT";$("reason").textContent="No fresh verified data is available. Do not act on a stale signal."}
+finally{$("analyse").textContent="Refresh market & analyse";$("analyse").disabled=false}}
+$("analyse").addEventListener("click",load);$("symbol").addEventListener("change",load);$("tf").addEventListener("change",()=>{countdown();load()});window.addEventListener("resize",()=>{if(lastData)draw(lastData.candles)});load();setInterval(load,60000);
+</script></body></html>
